@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option go_package = ".";
+
+// protoc --go_out=. --go-grpc_out=. *.proto
+
+package auth;
+
+message ValidateTokenReq {
+    string token = 1;
+}
+
+message ValidateTokenRes {
+    bool valid = 1;
+    string id = 2;
+}
+
+service AuthService {
+    rpc ValidateToken(ValidateTokenReq) returns (ValidateTokenRes);
+}

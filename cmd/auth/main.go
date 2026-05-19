@@ -1,15 +1,24 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	pb "gobr/internal/auth"
 	"gobr/internal/auth/delivery/handlers"
+	grpcserver "gobr/internal/auth/grpc_server"
 	"gobr/internal/auth/repo"
 	"gobr/internal/config"
 	"log"
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	_ "github.com/lib/pq"
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -35,7 +44,28 @@ func main() {
 	authHandler := handlers.NewAuthhandler(authRepo, cfg.JWT_TOKEN)
 	http.HandleFunc("/register", authHandler.Register)
 	http.HandleFunc("/login", authHandler.Login)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatalf("failed to start server: %v", err)
+    httpSrv := &http.Server{Addr: ":8080", Handler: nil}
+    go func() {
+        if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+            log.Fatal(err)
+        }
+    }()
+	lis, _:=net.Listen("tcp", ":50051")
+	grpcSrv:=grpc.NewServer()
+	pb.RegisterAuthServiceServer(grpcSrv,grpcserver.NewAuthServiceManager(cfg.JWT_TOKEN))
+	go func ()  {
+		if err:=grpcSrv.Serve(lis); err!=nil {
+			log.Fatal(err)
+		}
+	}()
+	stop:=make(chan os.Signal,1)
+	signal.Notify(stop,syscall.SIGINT,syscall.SIGTERM)
+	<-stop
+	log.Println("Shutting down...")
+	ctx,cancel:=context.WithTimeout(context.Background(),5*time.Second)
+	defer cancel()
+	grpcSrv.GracefulStop()
+	if err:=httpSrv.Shutdown(ctx); err!=nil {
+		log.Printf("HTTP shutdown error: %v", err)
 	}
 }

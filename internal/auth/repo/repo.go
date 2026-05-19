@@ -34,9 +34,9 @@ func (a *AuthRepo) Create(ctx context.Context, user *Auth) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := a.DB.QueryRowContext(ctx, query, user.UserName, user.Email, user.PasswordHash).Scan(&id)
 	if err != nil {
-		var pgErr *pq.Error
-		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolationCode {
-			switch pgErr.Constraint {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == uniqueViolationCode {
+			switch pqErr.Constraint {
 			case "auth_email_key":
 				return uuid.Nil, ErrDuplicateEmail
 			case "auth_username_key":

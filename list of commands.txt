@@ -1,2 +1,0 @@
-create database: docker run -d --name gobr-db --env-file .env -p 5433:5432 postgres:15-alpine
-migration: docker run --rm -v %cd%/internal/auth/migrations:/migrations --network host migrate/migrate -path=/migrations -database "postgres://user:root@localhost:5433/gobr?sslmode=disable" up
