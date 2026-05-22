@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	pb "gobr/internal/auth"
-	"gobr/internal/auth/delivery/handlers"
+	"gobr/internal/auth/handlers"
 	grpcserver "gobr/internal/auth/grpc_server"
 	"gobr/internal/auth/repo"
 	"gobr/internal/config"
