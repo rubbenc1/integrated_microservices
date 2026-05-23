@@ -34,3 +34,8 @@ func AuthMiddleWare(authClient *grpcclient.AuthClient) func(http.Handler) http.H
 		})
 	}
 }
+
+func GetUser(ctx context.Context) (string, bool) {
+	userID, ok := ctx.Value(UserIDKey).(string)
+	return userID, ok
+}

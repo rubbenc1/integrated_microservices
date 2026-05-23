@@ -21,6 +21,7 @@ func NewPostsRepo(db *sql.DB) *PostsRepo {
 }
 
 const notNullViolation = "23502"
+
 var ErrPostNotFound = errors.New("post not found")
 
 type ListPostsParams struct {
@@ -29,10 +30,14 @@ type ListPostsParams struct {
 }
 
 type UpdatePostRequest struct {
-    Title   *string `json:"title,omitempty"`
-    Content *string `json:"content,omitempty"`
+	Title   *string `json:"title,omitempty"`
+	Content *string `json:"content,omitempty"`
 }
 
+type Req struct {
+	Title   string `json:"title"`
+	Content string `json:"content"`
+}
 
 func (p *PostsRepo) Create(ctx context.Context, post *Post) (*Post, error) {
 	query := `
@@ -57,20 +62,14 @@ func (p *PostsRepo) Create(ctx context.Context, post *Post) (*Post, error) {
 	return &newPost, nil
 }
 
-func (p *PostsRepo) GetArticles(ctx context.Context, params ListPostsParams) ([]*Post, error) {
-
-	if params.Limit <= 0 || params.Limit > 100 {
-		params.Limit = 20
-	}
-	if params.Offset < 0 {
-		params.Offset = 0
-	}
+func (p *PostsRepo) GetPosts(ctx context.Context, params ListPostsParams) ([]*Post, error) {
 	query := `
 		SELECT *
 		FROM posts
+		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`
-	rows, err := p.DB.QueryContext(ctx, query)
+	rows, err := p.DB.QueryContext(ctx, query, params.Limit, params.Offset)
 	if err != nil {
 		return nil, err
 	}
@@ -97,25 +96,25 @@ func (p *PostsRepo) GetArticles(ctx context.Context, params ListPostsParams) ([]
 	return posts, nil
 }
 
-func (p *PostsRepo) UpdateArticle(ctx context.Context, id string, req UpdatePostRequest) (*Post, error) {
+func (p *PostsRepo) Update(ctx context.Context, id string, req UpdatePostRequest) (*Post, error) {
 	if req.Title == nil && req.Content == nil {
-        return nil, errors.New("no fields to update")
-    }
-	args:=[]interface{}{}
-	setParts:=[]string{}
-	idx:=1
-	if req.Title!=nil {
-		setParts=append(setParts, fmt.Sprintf("title = $%d", idx))
-		args=append(args, req.Title)
+		return nil, errors.New("no fields to update")
+	}
+	args := []interface{}{}
+	setParts := []string{}
+	idx := 1
+	if req.Title != nil {
+		setParts = append(setParts, fmt.Sprintf("title = $%d", idx))
+		args = append(args, req.Title)
 		idx++
 	}
 	if req.Content != nil {
-        setParts = append(setParts, fmt.Sprintf("content = $%d", idx))
-        args = append(args, req.Content)
-        idx++
-    }
+		setParts = append(setParts, fmt.Sprintf("content = $%d", idx))
+		args = append(args, req.Content)
+		idx++
+	}
 	setParts = append(setParts, "updated_at = NOW()")
-    args = append(args, id)
+	args = append(args, id)
 	query := fmt.Sprintf(`
         UPDATE posts
         SET %s
@@ -123,60 +122,60 @@ func (p *PostsRepo) UpdateArticle(ctx context.Context, id string, req UpdatePost
         RETURNING id, title, content, author_id, created_at, updated_at
     `, strings.Join(setParts, ", "), idx)
 
-    var updated Post
-    err := p.DB.QueryRowContext(ctx, query, args...).Scan(
-        &updated.ID,
-        &updated.Title,
-        &updated.Content,
-        &updated.AuthorID,
-        &updated.CreatedAt,
-        &updated.UpdatedAt,
-    )
-    if err != nil {
-        if errors.Is(err, sql.ErrNoRows) {
-            return nil, ErrPostNotFound
-        }
-        return nil, err
-    }
-    return &updated, nil
+	var updated Post
+	err := p.DB.QueryRowContext(ctx, query, args...).Scan(
+		&updated.ID,
+		&updated.Title,
+		&updated.Content,
+		&updated.AuthorID,
+		&updated.CreatedAt,
+		&updated.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrPostNotFound
+		}
+		return nil, err
+	}
+	return &updated, nil
 }
 
 func (p *PostsRepo) GetByID(ctx context.Context, id string) (*Post, error) {
-    query := `
+	query := `
         SELECT id, title, content, author_id, created_at, updated_at
         FROM posts
         WHERE id = $1
     `
-    var post Post
-    err := p.DB.QueryRowContext(ctx, query, id).Scan(
-        &post.ID,
-        &post.Title,
-        &post.Content,
-        &post.AuthorID,
-        &post.CreatedAt,
-        &post.UpdatedAt,
-    )
-    if err != nil {
-        if errors.Is(err, sql.ErrNoRows) {
-            return nil, ErrPostNotFound
-        }
-        return nil, err
-    }
-    return &post, nil
+	var post Post
+	err := p.DB.QueryRowContext(ctx, query, id).Scan(
+		&post.ID,
+		&post.Title,
+		&post.Content,
+		&post.AuthorID,
+		&post.CreatedAt,
+		&post.UpdatedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrPostNotFound
+		}
+		return nil, err
+	}
+	return &post, nil
 }
 
 func (p *PostsRepo) Delete(ctx context.Context, id string) error {
-    query := `DELETE FROM posts WHERE id = $1`
-    result, err := p.DB.ExecContext(ctx, query, id)
-    if err != nil {
-        return err
-    }
-    rowsAffected, err := result.RowsAffected()
-    if err != nil {
-        return err
-    }
-    if rowsAffected == 0 {
-        return ErrPostNotFound
-    }
-    return nil
+	query := `DELETE FROM posts WHERE id = $1`
+	result, err := p.DB.ExecContext(ctx, query, id)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return ErrPostNotFound
+	}
+	return nil
 }

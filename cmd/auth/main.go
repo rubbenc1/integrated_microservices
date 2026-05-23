@@ -41,7 +41,7 @@ func main() {
 		log.Fatalf("failed to ping db: %v", err)
 	}
 	authRepo := repo.NewAuthRepo(db)
-	authHandler := handlers.NewAuthhandler(authRepo, cfg.JWT_TOKEN)
+	authHandler := handlers.NewAuthhandler(authRepo, cfg.JWT_SECRET)
 	http.HandleFunc("/register", authHandler.Register)
 	http.HandleFunc("/login", authHandler.Login)
     httpSrv := &http.Server{Addr: ":8080", Handler: nil}
@@ -52,8 +52,8 @@ func main() {
     }()
 	lis, _:=net.Listen("tcp", ":50051")
 	grpcSrv:=grpc.NewServer()
-	pb.RegisterAuthServiceServer(grpcSrv,grpcserver.NewAuthServiceManager(cfg.JWT_TOKEN))
-	go func ()  {
+	pb.RegisterAuthServiceServer(grpcSrv,grpcserver.NewAuthServiceManager(cfg.JWT_SECRET))
+	go func () {
 		if err:=grpcSrv.Serve(lis); err!=nil {
 			log.Fatal(err)
 		}
