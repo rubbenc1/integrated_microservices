@@ -11,17 +11,17 @@ import (
 	"github.com/google/uuid"
 )
 
-type BlogHandler struct {
+type PostsHandler struct {
 	repo *repo.PostsRepo
 }
 
-func NewBlogHandler(repo *repo.PostsRepo) *BlogHandler {
-	return &BlogHandler{
+func NewPostsHandler(repo *repo.PostsRepo) *PostsHandler {
+	return &PostsHandler{
 		repo: repo,
 	}
 }
 
-func (b *BlogHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
+func (b *PostsHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	userIDStr, ok := middleware.GetUser(r.Context())
 	if !ok {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
@@ -62,7 +62,7 @@ func (b *BlogHandler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(created)
 }
 
-func (b *BlogHandler) GetPosts(w http.ResponseWriter, r *http.Request) {
+func (b *PostsHandler) GetPosts(w http.ResponseWriter, r *http.Request) {
 	limitStr := r.FormValue("limit")
 	offsetStr := r.FormValue("offset")
 	limit := 20
@@ -102,7 +102,8 @@ func (b *BlogHandler) GetPosts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (b *BlogHandler) GetPostById(w http.ResponseWriter, r *http.Request, postId string) {
+func (b *PostsHandler) GetPostById(w http.ResponseWriter, r *http.Request) {
+	postId := r.PathValue("id")
 	post, err := b.repo.GetByID(r.Context(), postId)
 	if err != nil {
 		if errors.Is(err, repo.ErrPostNotFound) {
@@ -119,7 +120,8 @@ func (b *BlogHandler) GetPostById(w http.ResponseWriter, r *http.Request, postId
 	}
 }
 
-func (b *BlogHandler) UpdatePost(w http.ResponseWriter, r *http.Request, postId string){
+func (b *PostsHandler) UpdatePost(w http.ResponseWriter, r *http.Request){
+	postId := r.PathValue("id")
 	var req repo.UpdatePostRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
@@ -142,7 +144,8 @@ func (b *BlogHandler) UpdatePost(w http.ResponseWriter, r *http.Request, postId 
 }
 
 
-func (b *BlogHandler) DeletePost(w http.ResponseWriter, r *http.Request, postId string) {
+func (b *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
+	postId := r.PathValue("id")
     if err := b.repo.Delete(r.Context(), postId); err != nil {
         if errors.Is(err, repo.ErrPostNotFound) {
             http.Error(w, "post not found", http.StatusNotFound)

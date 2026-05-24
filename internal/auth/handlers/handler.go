@@ -114,7 +114,7 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) generateToken(id string) (string, error) {
 	claims := jwt.MapClaims{
-		"sub": id,
+		"id": id,
 		"exp": time.Now().Add(time.Hour * 24).Unix(),
 		"iat": time.Now().Unix(),
 	}

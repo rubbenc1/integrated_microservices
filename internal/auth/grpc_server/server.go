@@ -20,7 +20,7 @@ func NewAuthServiceManager(jwtSecret string) *AuthServiceManager {
 }
 
 func (a *AuthServiceManager) ValidateToken(ctx context.Context, req *pb.ValidateTokenReq) (*pb.ValidateTokenRes, error) {
-	tokenStr:=strings.Trim(req.Token, "Bearer ")
+	tokenStr:=strings.TrimPrefix(req.Token, "Bearer ")
 	token,err:=jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
 		if _,ok:=t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid

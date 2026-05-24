@@ -8,7 +8,7 @@ import (
 	"gobr/internal/auth/handlers"
 	grpcserver "gobr/internal/auth/grpc_server"
 	"gobr/internal/auth/repo"
-	"gobr/internal/config"
+	"gobr/internal/auth/config"
 	"log"
 	"net"
 	"net/http"
@@ -44,13 +44,13 @@ func main() {
 	authHandler := handlers.NewAuthhandler(authRepo, cfg.JWT_SECRET)
 	http.HandleFunc("/register", authHandler.Register)
 	http.HandleFunc("/login", authHandler.Login)
-    httpSrv := &http.Server{Addr: ":8080", Handler: nil}
+    httpSrv := &http.Server{Addr: fmt.Sprintf(":%s",cfg.AUTH_SERVER_PORT), Handler: nil}
     go func() {
         if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
             log.Fatal(err)
         }
     }()
-	lis, _:=net.Listen("tcp", ":50051")
+	lis, _:=net.Listen("tcp", fmt.Sprintf(":%s",cfg.GRPC_SERVER_PORT))
 	grpcSrv:=grpc.NewServer()
 	pb.RegisterAuthServiceServer(grpcSrv,grpcserver.NewAuthServiceManager(cfg.JWT_SECRET))
 	go func () {

@@ -14,6 +14,9 @@ type Config struct {
 	POSTGRES_USER     string
 	POSTGRES_PASSWORD string
 	JWT_SECRET        string
+	BLOG_SERVER_PORT  string
+	GRPC_CLIENT_PORT  string
+
 }
 
 func LoadConfig() *Config {
@@ -27,5 +30,7 @@ func LoadConfig() *Config {
 		POSTGRES_USER:     os.Getenv("POSTGRES_USER"),
 		POSTGRES_PASSWORD: os.Getenv("POSTGRES_PASSWORD"),
 		JWT_SECRET:        os.Getenv("JWT_SECRET"),
+		BLOG_SERVER_PORT:  os.Getenv("BLOG_SERVER_PORT"),
+		GRPC_CLIENT_PORT:  os.Getenv("GRPC_CLIENT_PORT"),
 	}
 }
