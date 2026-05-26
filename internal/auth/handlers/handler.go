@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/IBM/sarama"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -14,12 +15,14 @@ import (
 type AuthHandler struct {
 	repo      *repo.AuthRepo
 	jwtSecret []byte
+	producer  sarama.SyncProducer
 }
 
-func NewAuthhandler(repo *repo.AuthRepo, jwtSecret string) *AuthHandler {
+func NewAuthhandler(repo *repo.AuthRepo, jwtSecret string, producer sarama.SyncProducer) *AuthHandler {
 	return &AuthHandler{
 		repo:      repo,
 		jwtSecret: []byte(jwtSecret),
+		producer:  producer,
 	}
 }
 
@@ -68,6 +71,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	
 	token, err := h.generateToken(id.String())
 	if err != nil {
 		http.Error(w, "could not generate token", http.StatusInternalServerError)

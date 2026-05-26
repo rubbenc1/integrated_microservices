@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"fmt"
 	pb "gobr/internal/auth"
-	"gobr/internal/auth/handlers"
-	grpcserver "gobr/internal/auth/grpc_server"
-	"gobr/internal/auth/repo"
 	"gobr/internal/auth/config"
+	grpcserver "gobr/internal/auth/grpc_server"
+	"gobr/internal/auth/handlers"
+	"gobr/internal/auth/repo"
 	"log"
 	"net"
 	"net/http"
@@ -17,11 +17,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/IBM/sarama"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 )
 
 func main() {
+
 	cfg := config.LoadConfig()
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		cfg.POSTGRES_USER,
@@ -40,8 +42,24 @@ func main() {
 	if err = db.Ping(); err != nil {
 		log.Fatalf("failed to ping db: %v", err)
 	}
+	//Kafka settings
+	cfgKafka:=sarama.NewConfig()
+	cfgKafka.Producer.RequiredAcks=sarama.WaitForAll
+	cfgKafka.Producer.Retry.Max=5
+	cfgKafka.Producer.Return.Successes=true
+
+	producer, err := sarama.NewSyncProducer([]string{}, cfgKafka)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer func() {
+		if err := producer.Close(); err != nil {
+			log.Panic(err)
+		}
+	}()
+	
 	authRepo := repo.NewAuthRepo(db)
-	authHandler := handlers.NewAuthhandler(authRepo, cfg.JWT_SECRET)
+	authHandler := handlers.NewAuthhandler(authRepo, cfg.JWT_SECRET, producer)
 	http.HandleFunc("/register", authHandler.Register)
 	http.HandleFunc("/login", authHandler.Login)
     httpSrv := &http.Server{Addr: fmt.Sprintf(":%s",cfg.AUTH_SERVER_PORT), Handler: nil}
