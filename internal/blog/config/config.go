@@ -16,7 +16,6 @@ type Config struct {
 	JWT_SECRET        string
 	BLOG_SERVER_PORT  string
 	GRPC_CLIENT_PORT  string
-
 }
 
 func LoadConfig() *Config {

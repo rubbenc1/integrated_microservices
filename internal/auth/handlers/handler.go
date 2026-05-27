@@ -42,6 +42,13 @@ type authResponse struct {
 	Token string `json:"token"`
 }
 
+type UserCreatedEvent struct {
+	ID   	 string `json:"id"`
+	Email    string `json:"email"`
+	UserName string `json:"username"`
+
+}
+
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -71,7 +78,25 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	
+	event:=UserCreatedEvent{
+		ID:   	  id.String(),
+		Email:    user.Email,
+		UserName: user.UserName,
+	}
+	eventBytes, err := json.Marshal(event)
+	if err == nil {
+		msg:=&sarama.ProducerMessage{
+			Topic: "user_created",
+			Value: sarama.StringEncoder(eventBytes),
+		}
+		partition, offset, err:=h.producer.SendMessage(msg)
+		if err != nil {
+        	log.Printf("Failed to send Kafka message: %v", err)
+		} else {
+			log.Printf("Message sent to partition %d at offset %d", partition, offset)
+		}
+	}
+
 	token, err := h.generateToken(id.String())
 	if err != nil {
 		http.Error(w, "could not generate token", http.StatusInternalServerError)

@@ -16,7 +16,7 @@ type Config struct {
 	JWT_SECRET        string
 	AUTH_SERVER_PORT  string
 	GRPC_SERVER_PORT  string
-
+	KAFKA_BROKER	  string
 }
 
 func LoadConfig() *Config {
@@ -31,6 +31,7 @@ func LoadConfig() *Config {
 		POSTGRES_PASSWORD: os.Getenv("POSTGRES_PASSWORD"),
 		JWT_SECRET:        os.Getenv("JWT_SECRET"),
 		AUTH_SERVER_PORT:  os.Getenv("AUTH_SERVER_PORT"),
-		GRPC_SERVER_PORT:  os.Getenv("GRPC_SERVER_PORT"),   
+		GRPC_SERVER_PORT:  os.Getenv("GRPC_SERVER_PORT"),
+		KAFKA_BROKER:	   os.Getenv("KAFKA_BROKER"),
 	}
 }

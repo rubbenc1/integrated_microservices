@@ -43,12 +43,12 @@ func main() {
 		log.Fatalf("failed to ping db: %v", err)
 	}
 	//Kafka settings
-	cfgKafka:=sarama.NewConfig()
-	cfgKafka.Producer.RequiredAcks=sarama.WaitForAll
-	cfgKafka.Producer.Retry.Max=5
-	cfgKafka.Producer.Return.Successes=true
+	cfgKafka := sarama.NewConfig()
+	cfgKafka.Producer.RequiredAcks = sarama.WaitForAll
+	cfgKafka.Producer.Retry.Max = 5
+	cfgKafka.Producer.Return.Successes = true
 
-	producer, err := sarama.NewSyncProducer([]string{}, cfgKafka)
+	producer, err := sarama.NewSyncProducer([]string{cfg.KAFKA_BROKER}, cfgKafka)
 	if err != nil {
 		log.Panic(err)
 	}
@@ -57,33 +57,33 @@ func main() {
 			log.Panic(err)
 		}
 	}()
-	
+
 	authRepo := repo.NewAuthRepo(db)
 	authHandler := handlers.NewAuthhandler(authRepo, cfg.JWT_SECRET, producer)
 	http.HandleFunc("/register", authHandler.Register)
 	http.HandleFunc("/login", authHandler.Login)
-    httpSrv := &http.Server{Addr: fmt.Sprintf(":%s",cfg.AUTH_SERVER_PORT), Handler: nil}
-    go func() {
-        if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-            log.Fatal(err)
-        }
-    }()
-	lis, _:=net.Listen("tcp", fmt.Sprintf(":%s",cfg.GRPC_SERVER_PORT))
-	grpcSrv:=grpc.NewServer()
-	pb.RegisterAuthServiceServer(grpcSrv,grpcserver.NewAuthServiceManager(cfg.JWT_SECRET))
-	go func () {
-		if err:=grpcSrv.Serve(lis); err!=nil {
+	httpSrv := &http.Server{Addr: fmt.Sprintf(":%s", cfg.AUTH_SERVER_PORT), Handler: nil}
+	go func() {
+		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
 	}()
-	stop:=make(chan os.Signal,1)
-	signal.Notify(stop,syscall.SIGINT,syscall.SIGTERM)
+	lis, _ := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPC_SERVER_PORT))
+	grpcSrv := grpc.NewServer()
+	pb.RegisterAuthServiceServer(grpcSrv, grpcserver.NewAuthServiceManager(cfg.JWT_SECRET))
+	go func() {
+		if err := grpcSrv.Serve(lis); err != nil {
+			log.Fatal(err)
+		}
+	}()
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 	log.Println("Shutting down...")
-	ctx,cancel:=context.WithTimeout(context.Background(),5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	grpcSrv.GracefulStop()
-	if err:=httpSrv.Shutdown(ctx); err!=nil {
+	if err := httpSrv.Shutdown(ctx); err != nil {
 		log.Printf("HTTP shutdown error: %v", err)
 	}
 }

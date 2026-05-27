@@ -20,23 +20,23 @@ func NewAuthServiceManager(jwtSecret string) *AuthServiceManager {
 }
 
 func (a *AuthServiceManager) ValidateToken(ctx context.Context, req *pb.ValidateTokenReq) (*pb.ValidateTokenRes, error) {
-	tokenStr:=strings.TrimPrefix(req.Token, "Bearer ")
-	token,err:=jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
-		if _,ok:=t.Method.(*jwt.SigningMethodHMAC); !ok {
+	tokenStr := strings.TrimPrefix(req.Token, "Bearer ")
+	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
+		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, jwt.ErrSignatureInvalid
 		}
-		return a.jwtSecret,nil
+		return a.jwtSecret, nil
 	})
-	if err!=nil || !token.Valid {
+	if err != nil || !token.Valid {
 		return &pb.ValidateTokenRes{Valid: false}, nil
 	}
-	claims, ok:=token.Claims.(jwt.MapClaims)
+	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok {
-		return &pb.ValidateTokenRes{Valid: false},nil
+		return &pb.ValidateTokenRes{Valid: false}, nil
 	}
-	id, _:=claims["id"].(string)
+	id, _ := claims["id"].(string)
 	return &pb.ValidateTokenRes{
 		Valid: true,
-		Id: id,
+		Id:    id,
 	}, nil
 }
