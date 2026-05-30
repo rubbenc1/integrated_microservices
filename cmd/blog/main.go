@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"gobr/internal/blog/config"
@@ -10,6 +11,8 @@ import (
 	"gobr/internal/blog/repo"
 	"log"
 	"net/http"
+
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -35,9 +38,15 @@ func main() {
 	if err!=nil {
 		log.Fatalf("failed to connect to grpc server: %v", err)
 	}
+	redisClient:=redis.NewClient(&redis.Options{
+		Addr: cfg.REDIS_ADDR,
+	})
+	if err:=redisClient.Ping(context.Background()).Err(); err!=nil{
+		log.Printf("Redis not available: %v", err)
+	}
 	authMiddleware:=middleware.AuthMiddleWare(grpcClient)
 	postsRepo:=repo.NewPostsRepo(db)
-	postsHandler:=handlers.NewPostsHandler(postsRepo)
+	postsHandler:=handlers.NewPostsHandler(postsRepo,redisClient)
 	mux:=http.NewServeMux()
 	createPostHandler:=http.HandlerFunc(postsHandler.CreatePost)
 	getPostsHandler:=http.HandlerFunc(postsHandler.GetPosts)

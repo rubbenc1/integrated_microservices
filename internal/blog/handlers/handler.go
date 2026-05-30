@@ -3,21 +3,26 @@ package handlers
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"gobr/internal/blog/middleware"
 	"gobr/internal/blog/repo"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 type PostsHandler struct {
-	repo *repo.PostsRepo
+	repo        *repo.PostsRepo
+	redisClient *redis.Client
 }
 
-func NewPostsHandler(repo *repo.PostsRepo) *PostsHandler {
+func NewPostsHandler(repo *repo.PostsRepo, redisClient *redis.Client) *PostsHandler {
 	return &PostsHandler{
-		repo: repo,
+		repo:        repo,
+		redisClient: redisClient,
 	}
 }
 
@@ -82,9 +87,18 @@ func (b *PostsHandler) GetPosts(w http.ResponseWriter, r *http.Request) {
 	offset := 0
 	if offsetStr != "" {
 		val, err := strconv.Atoi(offsetStr)
-		if err == nil {
-			offset = val
+		if err != nil {
+			http.Error(w, "invalid offset parameter", http.StatusBadRequest)
+			return
 		}
+		offset = val
+	}
+	cacheKey := fmt.Sprintf("posts:page:%d:limit:%d", offset/limit+1, limit)
+	if cached, err := b.redisClient.Get(r.Context(), cacheKey).Result(); err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("X-Cache", "HIT")
+		w.Write([]byte(cached))
+		return
 	}
 	params := repo.ListPostsParams{
 		Limit:  limit,
@@ -95,11 +109,15 @@ func (b *PostsHandler) GetPosts(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to fetch posts", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(posts); err != nil {
+	jsonData, err := json.Marshal(posts)
+	if err != nil {
 		http.Error(w, "failed to encode response", http.StatusInternalServerError)
 		return
 	}
+	_ = b.redisClient.Set(r.Context(), cacheKey, jsonData, 5*time.Minute).Err()
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-Cache", "MISS")
+	w.Write(jsonData)
 }
 
 func (b *PostsHandler) GetPostById(w http.ResponseWriter, r *http.Request) {
@@ -120,14 +138,14 @@ func (b *PostsHandler) GetPostById(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (b *PostsHandler) UpdatePost(w http.ResponseWriter, r *http.Request){
+func (b *PostsHandler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("id")
 	var req repo.UpdatePostRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
-	post,err:=b.repo.Update(r.Context(),postId,req)
+	post, err := b.repo.Update(r.Context(), postId, req)
 	if err != nil {
 		if errors.Is(err, repo.ErrPostNotFound) {
 			http.Error(w, "post not found", http.StatusNotFound)
@@ -143,16 +161,15 @@ func (b *PostsHandler) UpdatePost(w http.ResponseWriter, r *http.Request){
 	}
 }
 
-
 func (b *PostsHandler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	postId := r.PathValue("id")
-    if err := b.repo.Delete(r.Context(), postId); err != nil {
-        if errors.Is(err, repo.ErrPostNotFound) {
-            http.Error(w, "post not found", http.StatusNotFound)
-        } else {
-            http.Error(w, "failed to delete post", http.StatusInternalServerError)
-        }
-        return
-    }
+	if err := b.repo.Delete(r.Context(), postId); err != nil {
+		if errors.Is(err, repo.ErrPostNotFound) {
+			http.Error(w, "post not found", http.StatusNotFound)
+		} else {
+			http.Error(w, "failed to delete post", http.StatusInternalServerError)
+		}
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }

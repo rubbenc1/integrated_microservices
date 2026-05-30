@@ -16,6 +16,7 @@ type Config struct {
 	JWT_SECRET        string
 	BLOG_SERVER_PORT  string
 	GRPC_CLIENT_PORT  string
+	REDIS_ADDR		  string
 }
 
 func LoadConfig() *Config {
@@ -31,5 +32,6 @@ func LoadConfig() *Config {
 		JWT_SECRET:        os.Getenv("JWT_SECRET"),
 		BLOG_SERVER_PORT:  os.Getenv("BLOG_SERVER_PORT"),
 		GRPC_CLIENT_PORT:  os.Getenv("GRPC_CLIENT_PORT"),
+		REDIS_ADDR:		   os.Getenv("REDIS_ADDR"),
 	}
 }
