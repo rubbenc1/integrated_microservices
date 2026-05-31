@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"gobr/internal/blog/dto"
 	"strings"
 
 	"github.com/lib/pq"
@@ -23,21 +24,6 @@ func NewPostsRepo(db *sql.DB) *PostsRepo {
 const notNullViolation = "23502"
 
 var ErrPostNotFound = errors.New("post not found")
-
-type ListPostsParams struct {
-	Limit  int
-	Offset int
-}
-
-type UpdatePostRequest struct {
-	Title   *string `json:"title,omitempty"`
-	Content *string `json:"content,omitempty"`
-}
-
-type Req struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
-}
 
 func (p *PostsRepo) Create(ctx context.Context, post *Post) (*Post, error) {
 	query := `
@@ -62,7 +48,7 @@ func (p *PostsRepo) Create(ctx context.Context, post *Post) (*Post, error) {
 	return &newPost, nil
 }
 
-func (p *PostsRepo) GetPosts(ctx context.Context, params ListPostsParams) ([]*Post, error) {
+func (p *PostsRepo) GetPosts(ctx context.Context, params dto.ListPostsParams) ([]*Post, error) {
 	query := `
 		SELECT *
 		FROM posts
@@ -96,7 +82,7 @@ func (p *PostsRepo) GetPosts(ctx context.Context, params ListPostsParams) ([]*Po
 	return posts, nil
 }
 
-func (p *PostsRepo) Update(ctx context.Context, id string, req UpdatePostRequest) (*Post, error) {
+func (p *PostsRepo) Update(ctx context.Context, id string, req dto.UpdatePostRequest) (*Post, error) {
 	if req.Title == nil && req.Content == nil {
 		return nil, errors.New("no fields to update")
 	}

@@ -42,6 +42,7 @@ func main() {
 	if err = db.Ping(); err != nil {
 		log.Fatalf("failed to ping db: %v", err)
 	}
+
 	//Kafka settings
 	cfgKafka := sarama.NewConfig()
 	cfgKafka.Producer.RequiredAcks = sarama.WaitForAll
@@ -60,15 +61,22 @@ func main() {
 
 	authRepo := repo.NewAuthRepo(db)
 	authHandler := handlers.NewAuthhandler(authRepo, cfg.JWT_SECRET, producer)
+
 	http.HandleFunc("/register", authHandler.Register)
 	http.HandleFunc("/login", authHandler.Login)
+
 	httpSrv := &http.Server{Addr: fmt.Sprintf(":%s", cfg.AUTH_SERVER_PORT), Handler: nil}
 	go func() {
 		if err := httpSrv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatal(err)
 		}
 	}()
-	lis, _ := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPC_SERVER_PORT))
+
+	
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%s", cfg.GRPC_SERVER_PORT))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
 	grpcSrv := grpc.NewServer()
 	pb.RegisterAuthServiceServer(grpcSrv, grpcserver.NewAuthServiceManager(cfg.JWT_SECRET))
 	go func() {
@@ -76,10 +84,12 @@ func main() {
 			log.Fatal(err)
 		}
 	}()
+
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
 	<-stop
 	log.Println("Shutting down...")
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	grpcSrv.GracefulStop()

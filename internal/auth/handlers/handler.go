@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"gobr/internal/auth/dto"
 	"gobr/internal/auth/repo"
 	"log"
 	"net/http"
@@ -26,40 +27,19 @@ func NewAuthhandler(repo *repo.AuthRepo, jwtSecret string, producer sarama.SyncP
 	}
 }
 
-type registerReq struct {
-	UserName string `json:"username"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type loginReq struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type authResponse struct {
-	ID    string `json:"id"`
-	Token string `json:"token"`
-}
-
-type UserCreatedEvent struct {
-	ID   	 string `json:"id"`
-	Email    string `json:"email"`
-	UserName string `json:"username"`
-
-}
-
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
-	var req registerReq
+	var req dto.RegisterReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+
 	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
 	user := &repo.Auth{
 		UserName:     req.UserName,
 		Email:        req.Email,
@@ -78,7 +58,8 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	event:=UserCreatedEvent{
+
+	event:=dto.UserCreatedEvent{
 		ID:   	  id.String(),
 		Email:    user.Email,
 		UserName: user.UserName,
@@ -105,18 +86,19 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(authResponse{
+	json.NewEncoder(w).Encode(dto.AuthResponse{
 		ID:    id.String(),
 		Token: token,
 	})
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
-	var req loginReq
+	var req dto.LoginReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request", http.StatusBadRequest)
 		return
 	}
+
 	user, err:=h.repo.GetByEmail(r.Context(),req.Email)
 	if err != nil {
         if err == repo.ErrUserNotFound {
@@ -130,11 +112,13 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid credentials", http.StatusUnauthorized)
         return
 	}
+
 	token, err := h.generateToken(user.ID.String())
 	if err != nil {
 		http.Error(w, "could not generate token", http.StatusInternalServerError)
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
     json.NewEncoder(w).Encode(map[string]string{
         "token": token,
@@ -149,5 +133,4 @@ func (h *AuthHandler) generateToken(id string) (string, error) {
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString(h.jwtSecret)
-
 }

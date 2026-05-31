@@ -52,7 +52,7 @@ services:
     volumes:
       - auth-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U authuser -d authdb"]
+      test: ["CMD-SHELL", "pg_isready -U user -d authDb"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -67,7 +67,7 @@ services:
     volumes:
       - blog-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U bloguser -d blogdb"]
+      test: ["CMD-SHELL", "pg_isready -U user -d blogDb"]
       interval: 5s
       timeout: 5s
       retries: 5

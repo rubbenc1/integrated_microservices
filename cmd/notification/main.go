@@ -43,6 +43,7 @@ func main() {
 	cfgKafka := sarama.NewConfig()
 	cfgKafka.Consumer.Return.Errors = true
 	cfgKafka.Consumer.Offsets.Initial = sarama.OffsetOldest
+
 	consumerGroup, err := sarama.NewConsumerGroup([]string{cfg.KAFKA_BROKER}, "notification-group", cfgKafka)
 	if err != nil {
 		log.Fatalf("Failed to create consumer group: %v", err)
@@ -66,9 +67,11 @@ func main() {
 			log.Printf("Consumer group error: %v", err)
 		}
 	}()
+
 	sigterm := make(chan os.Signal, 1)
 	signal.Notify(sigterm, syscall.SIGINT, syscall.SIGTERM)
 	<-sigterm
 	log.Println("Shutting down...")
+	
 	cancel()
 }

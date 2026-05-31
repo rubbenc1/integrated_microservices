@@ -9,6 +9,7 @@ import (
 	"gobr/internal/blog/handlers"
 	"gobr/internal/blog/middleware"
 	"gobr/internal/blog/repo"
+	"gobr/internal/blog/service"
 	"log"
 	"net/http"
 
@@ -34,19 +35,27 @@ func main() {
 	if err = db.Ping(); err != nil {
 		log.Fatalf("failed to ping db: %v", err)
 	}
+
 	grpcClient,err:=grpcclient.NewAuthClient(cfg.GRPC_CLIENT_PORT)
 	if err!=nil {
 		log.Fatalf("failed to connect to grpc server: %v", err)
 	}
+
 	redisClient:=redis.NewClient(&redis.Options{
 		Addr: cfg.REDIS_ADDR,
 	})
 	if err:=redisClient.Ping(context.Background()).Err(); err!=nil{
 		log.Printf("Redis not available: %v", err)
 	}
+
 	authMiddleware:=middleware.AuthMiddleWare(grpcClient)
+
 	postsRepo:=repo.NewPostsRepo(db)
-	postsHandler:=handlers.NewPostsHandler(postsRepo,redisClient)
+
+	postsService:=service.NewPostService(postsRepo,redisClient)
+
+	postsHandler:=handlers.NewPostsHandler(postsService)
+
 	mux:=http.NewServeMux()
 	createPostHandler:=http.HandlerFunc(postsHandler.CreatePost)
 	getPostsHandler:=http.HandlerFunc(postsHandler.GetPosts)
@@ -54,9 +63,11 @@ func main() {
 	updatePost:=http.HandlerFunc(postsHandler.UpdatePost)
 	deletePost:=http.HandlerFunc(postsHandler.DeletePost)
 
+	//Public routes
 	mux.Handle("GET /posts", getPostsHandler)
 	mux.Handle("GET /posts/{id}", getPostById)
 
+	//Protected routes
 	mux.Handle("POST /posts",authMiddleware(createPostHandler))
 	mux.Handle("PATCH /posts/{id}", authMiddleware(updatePost))
 	mux.Handle("DELETE /posts/{id}", authMiddleware(deletePost))
