@@ -20,7 +20,7 @@ Three Go microservices communicating via gRPC and Kafka.
 ## Quick Start
 
 ### 1. Clone
-git clone git@github.com:rubbenc1/integrated_microservices.git
+git clone github.com:rubbenc1/integrated_microservices.git
 cd integrated_microservices
 
 ### 2. Configure environment
@@ -35,18 +35,6 @@ make migrate
 make run-auth
 make run-blog
 make run-notification
-
-## Make Commands
-
-| Command             | Description                          |
-|---------------------|--------------------------------------|
-| `make up`           | Start all containers                 |
-| `make down`         | Stop containers                      |
-| `make clean`        | Stop containers and remove volumes   |
-| `make logs`         | Tail all logs                        |
-| `make migrate`      | Run all migrations                   |
-| `make migrate-auth` | Run auth migrations only             |
-| `make migrate-blog` | Run blog migrations only             |
 
 ## Ports
 
